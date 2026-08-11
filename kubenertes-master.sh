@@ -39,6 +39,14 @@ systemctl enable netfilter-persistent
 
 hostnamectl set-hostname master
 
+# /etc/hosts (replace with your actual private IPs)
+
+cat <<EOF >> /etc/hosts
+10.0.1.174 master
+10.0.2.211 worker1
+10.0.2.167 worker2
+EOF
+
 KUBERNETES_VERSION=v1.34
 CRIO_VERSION=v1.34
 
@@ -82,15 +90,23 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 #installing calico 
 
-# Install Calico custom resources
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/custom-resources.yaml
-
-# Install Calico operator
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/tigera-operator.yaml
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.32.1/manifests/calico.yaml
 
 # Wait for the API server and Calico to settle
 
 sleep 90
+
+# Install unzip and curl if not already present
+sudo apt install -y unzip curl
+
+# Download AWS CLI v2
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+
+# Extract
+unzip awscliv2.zip
+
+# Install
+sudo ./aws/install
 
 # Generate join command
 JOIN_CMD=$(kubeadm token create --print-join-command)
@@ -102,7 +118,3 @@ aws ssm put-parameter \
   --type "String" \
   --overwrite \
   --region "us-east-2"
-
-
-
-
