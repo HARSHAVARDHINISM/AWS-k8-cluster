@@ -2,7 +2,7 @@
 set -euxo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
-export HOME=/home/ubuntu
+export HOME=/root
 
 # Update packages
 
