@@ -118,145 +118,12 @@ Resources:
           # Update packages
           apt-get update
 
-          # Install iptables persistence
-          apt-get install -y iptables-persistent netfilter-persistent
+          #installing git
+          apt install git 
+          git clone https://github.com/HARSHAVARDHINISM/aws-k8s-cluster.git
 
-          # Enable IP forwarding immediately
-          sysctl -w net.ipv4.ip_forward=1
-
-          # Enable IP forwarding permanently
-          echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
-          sysctl -p
-
-          # Detect the primary network interface (ens5, eth0, etc.)
-          IFACE=$(ip route | awk '/default/ {print $5}')
-
-          # Configure NAT
-          iptables -t nat -A POSTROUTING -o ${IFACE} -j MASQUERADE
-          iptables -A FORWARD -i ${IFACE} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-          iptables -A FORWARD -o ${IFACE} -j ACCEPT
-
-          # Save iptables rules
-          netfilter-persistent save
-          systemctl enable netfilter-persistent
-
-          export DEBIAN_FRONTEND=noninteractive
-
-          # ----------------------------------------------------
-          # Hostname ----------------------------------------------------
-          hostnamectl set-hostname master
-
-          # ----------------------------------------------------
-          # Update system
-          # ----------------------------------------------------
-          apt-get update
-          apt-get upgrade -y
-
-          # ----------------------------------------------------
-          # /etc/hosts (replace with your actual private IPs)
-          # ----------------------------------------------------
-          cat <<EOF >> /etc/hosts
-          10.0.1.174 master
-          10.0.2.211 worker1
-          10.0.2.167 worker2
-          EOF
-
-          # ----------------------------------------------------
-          # Disable swap
-          # ----------------------------------------------------
-          swapoff -a
-          sed -i '/ swap / s/^/#/' /etc/fstab
-
-          # ----------------------------------------------------
-          # Kernel modules
-          # ----------------------------------------------------
-          cat <<EOF | tee /etc/modules-load.d/k8s.conf
-          overlay
-          br_netfilter
-          EOF
-
-          modprobe overlay
-          modprobe br_netfilter
-
-          # ----------------------------------------------------
-          # Sysctl
-          # ----------------------------------------------------
-          cat <<EOF >/etc/sysctl.d/k8s.conf
-          net.ipv4.ip_forward=1
-          net.bridge.bridge-nf-call-iptables=1
-          net.bridge.bridge-nf-call-ip6tables=1
-          EOF
-
-          sysctl --system
-
-          # ----------------------------------------------------
-          # Install prerequisites
-          # ----------------------------------------------------
-          apt-get install -y software-properties-common curl gpg apt-transport-https ca-certificates
-
-          # ----------------------------------------------------
-          # Install CRI-O
-          # ----------------------------------------------------
-          KUBERNETES_VERSION=v1.35
-
-          mkdir -p /etc/apt/keyrings
-
-          curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/stable:/${KUBERNETES_VERSION}/deb/Release.key \
-          | gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
-
-          echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/stable:/${KUBERNETES_VERSION}/deb/ /" \
-          > /etc/apt/sources.list.d/cri-o.list
-
-          apt-get update
-          apt-get install -y cri-o
-
-          systemctl daemon-reload
-          systemctl enable crio
-          systemctl restart crio
-
-          # ----------------------------------------------------
-          # Kubernetes repository
-          #   ----------------------------------------------------
-          curl -fsSL https://pkgs.k8s.io/core:/stable:/${KUBERNETES_VERSION}/deb/Release.key \
-          | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-
-          echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/${KUBERNETES_VERSION}/deb/ /" \
-          > /etc/apt/sources.list.d/kubernetes.list
-
-          apt-get update
-
-          # ----------------------------------------------------
-          # Install Kubernetes
-          # ----------------------------------------------------
-          apt-get install -y kubelet kubeadm kubectl
-
-          apt-mark hold kubelet kubeadm kubectl
-          # Initialize Kubernetes
-          kubeadm init \
-          --apiserver-advertise-address=10.0.1.174 \
-          --pod-network-cidr=192.168.0.0/16
-
-          # Configure kubectl
-          mkdir -p /home/ubuntu/.kube
-          cp /etc/kubernetes/admin.conf /home/ubuntu/.kube/config
-          chown ubuntu:ubuntu /home/ubuntu/.kube/config
-
-          # Install Calico
-          su - ubuntu -c "kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.0/manifests/calico.yaml"
-
-          # Wait for the API server and Calico to settle
-          sleep 30
-          systemctl enable kubelet
-          # Generate join command
-          JOIN_CMD=$(kubeadm token create --print-join-command)
-
-          # Save to SSM Parameter Store
-          aws ssm put-parameter \
-          --name "/k8s/join-command" \
-          --value "$JOIN_CMD" \
-          --type String \
-          --overwrite \
-          --region us-east-2
+          chmod +x aws-k8s-cluster/master.sh
+          bash aws-k8s-cluster/master.sh
 
   PrivateRoute:
     Type: AWS::EC2::Route
@@ -285,115 +152,15 @@ Resources:
 
           export DEBIAN_FRONTEND=noninteractive
 
-          # ----------------------------------------------------
-          # Hostname ----------------------------------------------------
-          hostnamectl set-hostname worker1
-
-          # ----------------------------------------------------
-          # Update system
-          # ----------------------------------------------------
+          
           apt-get update
-          apt-get upgrade -y
+          apt install git -y
 
-          # ----------------------------------------------------
-          # /etc/hosts (replace with your actual private IPs)
-          # ----------------------------------------------------
-          cat <<EOF >> /etc/hosts
-          10.0.1.174 master
-          10.0.2.211 worker1
-          10.0.2.167 worker2
-          EOF
+          git clone https://github.com/HARSHAVARDHINISM/aws-k8s-cluster.git
+          chmod +x aws-k8s-cluster/worker1.sh
+          bash aws-k8s-cluster/worker1.sh
 
-          # ----------------------------------------------------
-          # Disable swap
-          # ----------------------------------------------------
-          swapoff -a
-          sed -i '/ swap / s/^/#/' /etc/fstab
-
-          # ----------------------------------------------------
-          # Kernel modules
-          # ----------------------------------------------------
-          cat <<EOF >/etc/modules-load.d/k8s.conf
-          overlay
-          br_netfilter
-          EOF
-
-          modprobe overlay
-          modprobe br_netfilter
-
-          # ----------------------------------------------------
-          # Sysctl
-          # ----------------------------------------------------
-          cat <<EOF | tee /etc/sysctl.d/k8s.conf
-          net.ipv4.ip_forward=1
-          net.bridge.bridge-nf-call-iptables=1
-          net.bridge.bridge-nf-call-ip6tables=1
-          EOF
-
-          sysctl --system
-
-          # ----------------------------------------------------
-          # Install prerequisites
-          # ----------------------------------------------------
-          apt-get install -y software-properties-common curl gpg apt-transport-https ca-certificates
-
-          # ----------------------------------------------------
-          # Install CRI-O
-          # ----------------------------------------------------
-          KUBERNETES_VERSION=v1.35
-
-          mkdir -p /etc/apt/keyrings
-
-          curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/stable:/${KUBERNETES_VERSION}/deb/Release.key \
-          | gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
-
-          echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/stable:/${KUBERNETES_VERSION}/deb/ /" \
-          > /etc/apt/sources.list.d/cri-o.list
-
-          apt-get update
-          apt-get install -y cri-o
-
-          systemctl daemon-reload
-          systemctl enable crio
-          systemctl restart crio
-
-          # ----------------------------------------------------
-          # Kubernetes repository
-          #   ----------------------------------------------------
-          curl -fsSL https://pkgs.k8s.io/core:/stable:/${KUBERNETES_VERSION}/deb/Release.key \
-          | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-
-          echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/${KUBERNETES_VERSION}/deb/ /" \
-          > /etc/apt/sources.list.d/kubernetes.list
-
-          apt-get update
-
-          # ----------------------------------------------------
-          # Install Kubernetes
-          # ----------------------------------------------------
-          apt-get install -y kubelet kubeadm kubectl
-
-          apt-mark hold kubelet kubeadm kubectl
-
-          systemctl enable kubelet
-
-          # Wait for join command
-          while true; do
-          JOIN_CMD=$(aws ssm get-parameter \
-          --name "/k8s/join-command" \
-          --query "Parameter.Value" \
-          --output text \
-          --region us-east-2 2>/dev/null)
-
-          if [ ! -z "$JOIN_CMD" ]; then
-          break
-          fi
-
-          sleep 15
-          done
-
-          # Join cluster
-          $JOIN_CMD
+          
   Node2:
     Type: AWS::EC2::Instance
     Properties:
@@ -414,114 +181,12 @@ Resources:
 
           export DEBIAN_FRONTEND=noninteractive
 
-          # ----------------------------------------------------
-          # Hostname ----------------------------------------------------
-          hostnamectl set-hostname worker2
-
-          # ----------------------------------------------------
-          # Update system
-          # ----------------------------------------------------
           apt-get update
-          apt-get upgrade -y
-
-          # ----------------------------------------------------
-          # /etc/hosts (replace with your actual private IPs)
-          # ----------------------------------------------------
-          cat <<EOF >> /etc/hosts
-          10.0.1.174 master
-          10.0.2.211 worker1
-          10.0.2.167 worker2
-          EOF
-
-          # ----------------------------------------------------
-          # Disable swap
-          # ----------------------------------------------------
-          swapoff -a
-          sed -i '/ swap / s/^/#/' /etc/fstab
-
-          # ----------------------------------------------------
-          # Kernel modules
-          # ----------------------------------------------------
-          cat <<EOF | tee /etc/modules-load.d/k8s.conf
-          overlay
-          br_netfilter
-          EOF
-
-          modprobe overlay
-          modprobe br_netfilter
-
-          # ----------------------------------------------------
-          # Sysctl
-          # ----------------------------------------------------
-          cat <<EOF >/etc/sysctl.d/k8s.conf
-          net.ipv4.ip_forward=1
-          net.bridge.bridge-nf-call-iptables=1
-          net.bridge.bridge-nf-call-ip6tables=1
-          EOF
-
-          sysctl --system
-
-          # ----------------------------------------------------
-          # Install prerequisites
-          # ----------------------------------------------------
-          apt-get install -y software-properties-common curl gpg apt-transport-https ca-certificates
-
-          # ----------------------------------------------------
-          # Install CRI-O
-          # ----------------------------------------------------
-          KUBERNETES_VERSION=v1.35
-
-          mkdir -p /etc/apt/keyrings
-
-          curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/stable:/${KUBERNETES_VERSION}/deb/Release.key \
-          | gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
-
-          echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/stable:/${KUBERNETES_VERSION}/deb/ /" \
-          > /etc/apt/sources.list.d/cri-o.list
-
-          apt-get update
-          apt-get install -y cri-o
-
-          systemctl daemon-reload
-          systemctl enable crio
-          systemctl restart crio
-
-          # ----------------------------------------------------
-          # Kubernetes repository
-          #   ----------------------------------------------------
-          curl -fsSL https://pkgs.k8s.io/core:/stable:/${KUBERNETES_VERSION}/deb/Release.key \
-          | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-
-          echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/${KUBERNETES_VERSION}/deb/ /" \
-          > /etc/apt/sources.list.d/kubernetes.list
-
-          apt-get update
-
-          # ----------------------------------------------------
-          # Install Kubernetes
-          # ----------------------------------------------------
-          apt-get install -y kubelet kubeadm kubectl
-
-          apt-mark hold kubelet kubeadm kubectl
-
-          systemctl enable kubelet
-          # Wait for join command
-          while true; do
-          JOIN_CMD=$(aws ssm get-parameter \
-          --name "/k8s/join-command" \
-          --query "Parameter.Value" \
-          --output text \
-          --region us-east-2 2>/dev/null)
-
-          if [ ! -z "$JOIN_CMD" ]; then
-          break
-          fi
-
-          sleep 15
-          done
-
-          # Join cluster
-          $JOIN_CMD
+          apt install git -y 
+          git clone https://github.com/HARSHAVARDHINISM/aws-k8s-cluster.git
+          chmod +x aws-k8s-cluster/worker2.sh
+          bash aws-k8s-cluster/worker2.sh
+          
   PublicSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
