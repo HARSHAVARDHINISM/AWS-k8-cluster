@@ -46,7 +46,7 @@ sudo apt-mark hold kubelet kubeadm kubectl
 sudo systemctl enable --now kubelet
 
 sudo systemctl start crio
-sudo systemctl enable -- now crio
+sudo systemctl enable --now crio
 
 # Install unzip and curl if not already present
 sudo apt install -y unzip curl
