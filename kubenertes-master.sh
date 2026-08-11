@@ -1,7 +1,8 @@
 #!/bin/bash
-set -eux
+set -euxo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
+export HOME=/home/ubuntu
 
 # Update packages
 
