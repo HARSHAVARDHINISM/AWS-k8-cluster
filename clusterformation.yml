@@ -120,10 +120,10 @@ Resources:
 
           #installing git
           apt install git 
-          git clone https://github.com/HARSHAVARDHINISM/aws-k8s-cluster.git
+          git clone https://github.com/HARSHAVARDHINISM/AWS-k8-cluster.git
 
-          chmod +x aws-k8s-cluster/master.sh
-          bash aws-k8s-cluster/master.sh
+          chmod +x AWS-k8-cluster/kubenertes-master.sh
+          bash AWS-k8-cluster/kubenertes-master.sh
 
   PrivateRoute:
     Type: AWS::EC2::Route
@@ -156,9 +156,9 @@ Resources:
           apt-get update
           apt install git -y
 
-          git clone https://github.com/HARSHAVARDHINISM/aws-k8s-cluster.git
-          chmod +x aws-k8s-cluster/worker1.sh
-          bash aws-k8s-cluster/worker1.sh
+          git clone https://github.com/HARSHAVARDHINISM/AWS-k8-cluster.git
+          chmod +x AWS-k8-cluster/worker1.sh
+          bash AWS-k8-cluster/worker1.sh
 
           
   Node2:
@@ -183,9 +183,9 @@ Resources:
 
           apt-get update
           apt install git -y 
-          git clone https://github.com/HARSHAVARDHINISM/aws-k8s-cluster.git
-          chmod +x aws-k8s-cluster/worker2.sh
-          bash aws-k8s-cluster/worker2.sh
+          git clone https://github.com/HARSHAVARDHINISM/AWS-k8-cluster.git
+          chmod +x AWS-k8-cluster/worker2.sh
+          bash AWS-k8-cluster/worker2.sh
           
   PublicSecurityGroup:
     Type: AWS::EC2::SecurityGroup
